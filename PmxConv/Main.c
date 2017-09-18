@@ -17,8 +17,11 @@ case A:								\
 	printf("\t%s: %d\n", B, global);	\
 	break;							\
 
+#define QUICK_PRINT(A, B)			\
+printf("%s: " B "\n", #A, A);		\
+
 int printGlobals(uint8_t *globals, uint8_t globalCount) {
-	printf("Global count: %d\n--------------------------------\n", globalCount);
+	printf("--------------------------------\n");
 	for (uint8_t i = 0; i < globalCount; i++) {
 		uint8_t global = globals[i];
 		switch (i) {
@@ -72,6 +75,11 @@ uint32_t ParsePMX(FILE *fp) {
 		return -1;
 	}
 	uint8_t *globals = (uint8_t*)malloc(firstHeaderChunk.globalCount);
+	
+	QUICK_PRINT(firstHeaderChunk.magic, "0x%x")
+	QUICK_PRINT(firstHeaderChunk.version, "%.1f")
+	QUICK_PRINT(firstHeaderChunk.globalCount, "%d")
+	
 	fread(globals, firstHeaderChunk.globalCount, 1, fp);
 
 
@@ -81,11 +89,31 @@ uint32_t ParsePMX(FILE *fp) {
 	sint8_t *universalModelName = readString(fp);
 	sint8_t *localComments = readString(fp);
 	sint8_t *universalComments = readString(fp);
+	
+	QUICK_PRINT(localModelName, "%s")
+	QUICK_PRINT(universalModelName, "%s")
+	QUICK_PRINT(localComments, "%s")
+	QUICK_PRINT(universalComments, "%s")
 
-	printf("localModelName: %s\n", localModelName);
-	printf("universalModelName: %s\n", universalModelName);
-	printf("localComments: %s\n", localComments);
-	printf("universalComments: %s\n", universalComments);
+#pragma pack(push)
+#pragma pack(1) // set alignment to 1 byte
+	typedef struct _headerCounts {
+		uint32_t vertexCount;
+		uint32_t surfaceCount;
+		uint32_t textureCount;
+		uint32_t materialCount;
+		uint32_t boneCount;
+		uint32_t morphCount;
+		uint32_t diplayFrameCount;
+		uint32_t rigidbodyCount;
+		uint32_t jointCount;
+	} _secondChunk;
+#pragma pack(pop) // restore
+
+	_secondChunk secondHeaderChunk;
+	fread(&secondHeaderChunk, sizeof(_secondChunk), 1, fp);
+
+	//printf("")
 
 
 	free(globals);
