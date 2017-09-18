@@ -249,7 +249,7 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 }
 
 int main(int argc, char **argv) {
-	printf("PMX2OBJ By ogniK! Last built "__DATE__" at "__TIME__"\n");
+	printf("PMX2OBJ v1.0 Alpha! Last built "__DATE__" at "__TIME__"\n");
 	printf("---------------------------------------------------------------------------\n");
 	if (argc < 2) {
 		printf("%s <FILE>\n", argv[0]);
