@@ -57,7 +57,7 @@ sint8_t *readString(FILE *fp) {
 }
 
 
-uint32_t ParsePMX(FILE *fp) {
+uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 #pragma pack(push)
 #pragma pack(1) // set alignment to 1 byte
 	typedef struct _headerFirst {
@@ -73,6 +73,11 @@ uint32_t ParsePMX(FILE *fp) {
 	if (firstHeaderChunk.magic != 0x20584D50) {
 		printf("Bad magic!\n");
 		return -1;
+	}
+
+	if (firstHeaderChunk.version != 2.0) {
+		printf("ADD VERSION %.1f SUPPORT!\n", firstHeaderChunk.version);
+		return -2;
 	}
 	uint8_t *globals = (uint8_t*)malloc(firstHeaderChunk.globalCount);
 	
@@ -90,10 +95,18 @@ uint32_t ParsePMX(FILE *fp) {
 	sint8_t *localComments = readString(fp);
 	sint8_t *universalComments = readString(fp);
 	
-	QUICK_PRINT(localModelName, "%s");
-	QUICK_PRINT(universalModelName, "%s");
-	QUICK_PRINT(localComments, "%s");
-	QUICK_PRINT(universalComments, "%s");
+	if (globals[0] == 1) {
+		QUICK_PRINT(localModelName, "%s");
+		QUICK_PRINT(universalModelName, "%s");
+		QUICK_PRINT(localComments, "%s");
+		QUICK_PRINT(universalComments, "%s");
+	}
+	else {
+		QUICK_PRINT(localModelName, "%S"); printf("\n");
+		QUICK_PRINT(universalModelName, "%S"); printf("\n");
+		QUICK_PRINT(localComments, "%S"); printf("\n");
+		QUICK_PRINT(universalComments, "%S"); printf("\n");
+	}
 
 	uint32_t vertexCount;
 	fread(&vertexCount, sizeof(uint32_t), 1, fp);
@@ -117,28 +130,21 @@ uint32_t ParsePMX(FILE *fp) {
 	vec_t *vertList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	vec_t *normalList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	uv_t *uvList = (uv_t *)malloc(sizeof(uv_t) * vertexCount);
-	FILE *obj = fopen("C:\\cunt\\cunt.obj", "wb");
+	char objFilename[_MAX_PATH];
+	sprintf(objFilename, "%s_out.obj", filename);
+	FILE *obj = fopen(objFilename, "wb");
+	if (!obj) {
+		printf("Failed to create %s file!\n", objFilename);
+		return -3;
+	}
+
 	for (uint32_t i = 0; i < vertexCount; i++) {
 		vec_t vertex;
 		fread(&vertex, sizeof(vec_t), 1, fp);
-
-		QUICK_PRINT(vertex.x, "%.2f");
-		QUICK_PRINT(vertex.y, "%.2f");
-		QUICK_PRINT(vertex.z, "%.2f");
-
 		vec_t normal;
 		fread(&normal, sizeof(vec_t), 1, fp);
-
-		QUICK_PRINT(normal.x, "%.2f");
-		QUICK_PRINT(normal.y, "%.2f");
-		QUICK_PRINT(normal.z, "%.2f");
-
 		uv_t uv;
 		fread(&uv, sizeof(uv_t), 1, fp);
-
-		QUICK_PRINT(uv.u, "%.2f");
-		QUICK_PRINT(uv.v, "%.2f");
-
 		if (globals[1] > 0) {
 			float *appendixUV = (float *)malloc(sizeof(float) * globals[1]);
 			fread(appendixUV, sizeof(float), globals[2], fp); // Unused for now
@@ -146,39 +152,42 @@ uint32_t ParsePMX(FILE *fp) {
 		}
 		uint8_t weightType;
 		fread(&weightType, sizeof(uint8_t), 1, fp);
-		QUICK_PRINT(weightType, "%d");
 
-		if (weightType == 0) { //BDEF1
+		if (weightType == 0) { // BDEF1
 			fseek(fp, globals[5], SEEK_CUR);
 		}
-		else if (weightType == 1) { //BDEF2
+		else if (weightType == 1) { // BDEF2
 			fseek(fp, (globals[5] * 2) + sizeof(float), SEEK_CUR);
 		}
-		else if (weightType == 2) { //BDEF4
+		else if (weightType == 2) { // BDEF4
 			fseek(fp, (globals[5] * 4) + (sizeof(float) * 4), SEEK_CUR);
 		}
-		else if (weightType == 4) { //SDEF
-			fseek(fp, (globals[5] * 2) + (sizeof(float) * 11), SEEK_CUR);
+		else if (weightType == 3) { // SDEF
+			fseek(fp, (globals[5] * 2) + sizeof(float) + ( sizeof(vec_t) * 3 ), SEEK_CUR);
 		}
 		else {
 			printf("INVALID WEIGHT TYPE! %d\n", ftell(fp));
-			break;
+			fclose(obj);
+			remove(objFilename);
+			free(vertList);
+			free(normalList);
+			free(uvList);
+			free(globals);
+			return -3;
 		}
 
 		float edgeScale;
 		fread(&edgeScale, sizeof(float), 1, fp);
-		QUICK_PRINT(edgeScale, "%.04f");
 
 
 		vertList[i] = vertex;
 		normalList[i] = normal;
 		uvList[i] = uv;
 
-		char buf[512];
+		char buf[1024];
 		sprintf(buf, "v %.3f %.3f %.3f 1.000\nvn %.3f %.3f %.3f\nvt %.3f %.3f\n", vertex.x, vertex.y, vertex.z, normal.x, normal.y, normal.z, uv.u, uv.v);
 		fwrite(buf, 1, strlen(buf), obj);
 	}
-	QUICK_PRINT(ftell(fp), "%d");
 	uint32_t faceCount;
 	fread(&faceCount, sizeof(faceCount), 1, fp);
 	QUICK_PRINT(faceCount, "%d");
@@ -200,7 +209,7 @@ uint32_t ParsePMX(FILE *fp) {
 			fread(&faces[i], globals[2], 1, fp);
 		}
 
-		QUICK_PRINT(faces[i], "%d");
+		//QUICK_PRINT(faces[i], "%d");
 	}
 	for (uint32_t i = 0; i < faceCount; i+= 3) {
 		char buf[256];
@@ -220,7 +229,7 @@ uint32_t ParsePMX(FILE *fp) {
 int main(int argc, char **argv) {
 #ifdef _DEBUG
 	argc = 2;
-	argv[1] = "C:\\cunt\\testmodel.pmx";
+	argv[1] = "C:\\cunt\\TDA Snow Miku.pmx";
 #endif
 	if (argc < 2) {
 		printf("%s <FILE>\n", argv[0]);
@@ -233,7 +242,7 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 	uint32_t errCode;
-	if ((errCode = ParsePMX(fp)) != 0)
+	if ((errCode = ParsePMX(fp, argv[1])) != 0)
 		printf("Failed to parse PMX with error code %02X!\n", errCode);
 	fclose(fp);
 }
