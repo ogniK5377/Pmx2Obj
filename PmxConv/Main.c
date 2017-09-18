@@ -18,7 +18,7 @@ case A:								\
 	break;							\
 
 #define QUICK_PRINT(A, B)			\
-printf("%s: " B "\n", #A, A);		\
+printf("%s: " B "\n", #A, A)		\
 
 int printGlobals(uint8_t *globals, uint8_t globalCount) {
 	printf("--------------------------------\n");
@@ -76,9 +76,9 @@ uint32_t ParsePMX(FILE *fp) {
 	}
 	uint8_t *globals = (uint8_t*)malloc(firstHeaderChunk.globalCount);
 	
-	QUICK_PRINT(firstHeaderChunk.magic, "0x%x")
-	QUICK_PRINT(firstHeaderChunk.version, "%.1f")
-	QUICK_PRINT(firstHeaderChunk.globalCount, "%d")
+	QUICK_PRINT(firstHeaderChunk.magic, "0x%x");
+	QUICK_PRINT(firstHeaderChunk.version, "%.1f");
+	QUICK_PRINT(firstHeaderChunk.globalCount, "%d");
 	
 	fread(globals, firstHeaderChunk.globalCount, 1, fp);
 
@@ -90,15 +90,15 @@ uint32_t ParsePMX(FILE *fp) {
 	sint8_t *localComments = readString(fp);
 	sint8_t *universalComments = readString(fp);
 	
-	QUICK_PRINT(localModelName, "%s")
-	QUICK_PRINT(universalModelName, "%s")
-	QUICK_PRINT(localComments, "%s")
-	QUICK_PRINT(universalComments, "%s")
+	QUICK_PRINT(localModelName, "%s");
+	QUICK_PRINT(universalModelName, "%s");
+	QUICK_PRINT(localComments, "%s");
+	QUICK_PRINT(universalComments, "%s");
 
 	uint32_t vertexCount;
 	fread(&vertexCount, sizeof(uint32_t), 1, fp);
 
-	QUICK_PRINT(vertexCount, "%d")
+	QUICK_PRINT(vertexCount, "%d");
 
 #pragma pack(push)
 #pragma pack(1) // set alignment to 1 byte
@@ -117,27 +117,27 @@ uint32_t ParsePMX(FILE *fp) {
 	vec_t *vertList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	vec_t *normalList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	uv_t *uvList = (uv_t *)malloc(sizeof(uv_t) * vertexCount);
-
-	for (uint32_t i = 0; i < 2; i++) {
+	FILE *obj = fopen("C:\\cunt\\cunt.obj", "wb");
+	for (uint32_t i = 0; i < vertexCount; i++) {
 		vec_t vertex;
 		fread(&vertex, sizeof(vec_t), 1, fp);
 
-		QUICK_PRINT(vertex.x, "%.2f")
-		QUICK_PRINT(vertex.y, "%.2f")
-		QUICK_PRINT(vertex.z, "%.2f")
+		QUICK_PRINT(vertex.x, "%.2f");
+		QUICK_PRINT(vertex.y, "%.2f");
+		QUICK_PRINT(vertex.z, "%.2f");
 
 		vec_t normal;
 		fread(&normal, sizeof(vec_t), 1, fp);
 
-		QUICK_PRINT(normal.x, "%.2f")
-		QUICK_PRINT(normal.y, "%.2f")
-		QUICK_PRINT(normal.z, "%.2f")
+		QUICK_PRINT(normal.x, "%.2f");
+		QUICK_PRINT(normal.y, "%.2f");
+		QUICK_PRINT(normal.z, "%.2f");
 
 		uv_t uv;
 		fread(&uv, sizeof(uv_t), 1, fp);
 
-		QUICK_PRINT(uv.u, "%.2f")
-		QUICK_PRINT(uv.v, "%.2f")
+		QUICK_PRINT(uv.u, "%.2f");
+		QUICK_PRINT(uv.v, "%.2f");
 
 		if (globals[1] > 0) {
 			float *appendixUV = (float *)malloc(sizeof(float) * globals[1]);
@@ -146,7 +146,7 @@ uint32_t ParsePMX(FILE *fp) {
 		}
 		uint8_t weightType;
 		fread(&weightType, sizeof(uint8_t), 1, fp);
-		QUICK_PRINT(weightType, "%d")
+		QUICK_PRINT(weightType, "%d");
 
 		if (weightType == 0) { //BDEF1
 			fseek(fp, globals[5], SEEK_CUR);
@@ -161,19 +161,57 @@ uint32_t ParsePMX(FILE *fp) {
 			fseek(fp, (globals[5] * 2) + (sizeof(float) * 11), SEEK_CUR);
 		}
 		else {
-			printf("INVALID WEIGHT! %d\n", ftell(fp));
+			printf("INVALID WEIGHT TYPE! %d\n", ftell(fp));
 			break;
 		}
 
 		float edgeScale;
 		fread(&edgeScale, sizeof(float), 1, fp);
-		QUICK_PRINT(edgeScale, "%.04f")
+		QUICK_PRINT(edgeScale, "%.04f");
 
 
 		vertList[i] = vertex;
 		normalList[i] = normal;
 		uvList[i] = uv;
+
+		char buf[512];
+		sprintf(buf, "v %.3f %.3f %.3f 1.000\nvn %.3f %.3f %.3f\nvt %.3f %.3f\n", vertex.x, vertex.y, vertex.z, normal.x, normal.y, normal.z, uv.u, uv.v);
+		fwrite(buf, 1, strlen(buf), obj);
 	}
+	QUICK_PRINT(ftell(fp), "%d");
+	uint32_t faceCount;
+	fread(&faceCount, sizeof(faceCount), 1, fp);
+	QUICK_PRINT(faceCount, "%d");
+
+	uint32_t *faces = (uint32_t *)malloc(faceCount * sizeof(uint32_t));
+	uint32_t j = 0;
+	for (uint32_t i = 0; i < faceCount; i++) {
+		if (globals[2] == 1) {
+			uint8_t val;
+			fread(&val, globals[2], 1, fp);
+			faces[i] = (uint32_t)val;
+		}
+		else if (globals[2] == 2) {
+			uint16_t val;
+			fread(&val, globals[2], 1, fp);
+			faces[i] = (uint32_t)val;
+		}
+		else if (globals[2] == 4) {
+			fread(&faces[i], globals[2], 1, fp);
+		}
+
+		QUICK_PRINT(faces[i], "%d");
+	}
+	for (uint32_t i = 0; i < faceCount; i+= 3) {
+		char buf[256];
+		sprintf(buf, "f %d/%d %d/%d %d/%d\n", faces[i] + 1, faces[i] + 1, faces[i+1] + 1, faces[i + 1] + 1, faces[i+2] + 1, faces[i + 2] + 1);
+		fwrite(buf, sizeof(uint8_t), strlen(buf), obj);
+	}
+	fclose(obj);
+	free(faces);
+	free(vertList);
+	free(normalList);
+	free(uvList);
 	free(globals);
 
 	return 0;
