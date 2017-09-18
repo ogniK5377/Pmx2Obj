@@ -249,10 +249,6 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 }
 
 int main(int argc, char **argv) {
-#ifdef _DEBUG
-	argc = 2;
-	argv[1] = "C:\\cunt\\TDA Snow Miku.pmx";
-#endif
 	printf("PMX2OBJ By ogniK! Last built "__DATE__" at "__TIME__"\n");
 	printf("---------------------------------------------------------------------------\n");
 	if (argc < 2) {
