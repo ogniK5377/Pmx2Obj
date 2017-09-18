@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _MSC_VER // Get rid of fopen, fread, fwrite warnings
 #pragma warning(disable : 4996)  
 #endif
 
+typedef char sint8_t;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -40,6 +42,18 @@ int printGlobals(uint8_t *globals, uint8_t globalCount) {
 	return 0;
 }
 
+sint8_t *readString(FILE *fp) {
+	uint32_t len;
+	fread(&len, sizeof(uint32_t), 1, fp);
+	sint8_t *t = (sint8_t *)malloc(len + 1);
+	memset(t, 0, len + 1);
+	if (len > 0) {
+		fread(t, 1, len, fp);
+	}
+	return t;
+}
+
+
 uint32_t ParsePMX(FILE *fp) {
 #pragma pack(push)
 #pragma pack(1) // set alignment to 1 byte
@@ -62,10 +76,18 @@ uint32_t ParsePMX(FILE *fp) {
 
 
 	printGlobals(globals, firstHeaderChunk.globalCount);
-	for (int i = 0; i < firstHeaderChunk.globalCount; i++) {
-		printf("%d\n", (char*)(globals)[i]);
-	}
-	
+
+	sint8_t *localModelName = readString(fp);
+	sint8_t *universalModelName = readString(fp);
+	sint8_t *localComments = readString(fp);
+	sint8_t *universalComments = readString(fp);
+
+	printf("localModelName: %s\n", localModelName);
+	printf("universalModelName: %s\n", universalModelName);
+	printf("localComments: %s\n", localComments);
+	printf("universalComments: %s\n", universalComments);
+
+
 	free(globals);
 
 	return 0;
