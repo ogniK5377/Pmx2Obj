@@ -10,7 +10,18 @@ typedef char sint8_t;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
+#ifndef NULL
 #define NULL 0
+#endif
+
+#ifndef MAX_PATH
+#ifdef _MAX_PATH
+#define MAX_PATH _MAX_PATH
+#else
+#include <linux/limits.h>
+#define MAX_PATH PATH_MAX
+#endif
+#endif
 
 #define GLOBAL_CASE(A, B)			\
 case A:								\
@@ -19,6 +30,26 @@ case A:								\
 
 #define QUICK_PRINT(A, B)			\
 printf("%s: " B "\n", #A, A)		\
+
+#define QUICK_PRINT_UTF16(A, B)		\
+printf("%s: " B "\n", (wchar_t *)#A, A)		\
+
+#define IS_BE() ('\xde\xad\xbe\xef' == 0xdeadbeef)
+
+uint32_t swapUint32(char x[4]) {
+	//*(uint32_t *)
+	if (IS_BE())
+		return *(uint32_t *)x;
+	else { // uhh what
+		uint32_t ret;
+		char *b = (char *)&ret;
+		b[3] = x[3];
+		b[2] = x[2];
+		b[1] = x[1];
+		b[0] = x[0];
+		return ret;
+	}
+}
 
 int printGlobals(uint8_t *globals, uint8_t globalCount) {
 	printf("--------------------------------\n");
@@ -102,10 +133,10 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 		QUICK_PRINT(universalComments, "%s");
 	}
 	else {
-		QUICK_PRINT(localModelName, "%S"); printf("\n");
-		QUICK_PRINT(universalModelName, "%S"); printf("\n");
-		QUICK_PRINT(localComments, "%S"); printf("\n");
-		QUICK_PRINT(universalComments, "%S"); printf("\n");
+		QUICK_PRINT(localModelName, "%S");
+		QUICK_PRINT(universalModelName, "%S");
+		QUICK_PRINT(localComments, "%S");
+		QUICK_PRINT(universalComments, "%S");
 	}
 
 	uint32_t vertexCount;
@@ -130,7 +161,7 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 	vec_t *vertList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	vec_t *normalList = (vec_t *)malloc(sizeof(vec_t) * vertexCount);
 	uv_t *uvList = (uv_t *)malloc(sizeof(uv_t) * vertexCount);
-	char objFilename[_MAX_PATH];
+	char objFilename[MAX_PATH];
 	sprintf(objFilename, "%s_out.obj", filename);
 	FILE *obj = fopen(objFilename, "wb");
 	if (!obj) {
@@ -195,20 +226,10 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 	uint32_t *faces = (uint32_t *)malloc(faceCount * sizeof(uint32_t));
 	uint32_t j = 0;
 	for (uint32_t i = 0; i < faceCount; i++) {
-		if (globals[2] == 1) {
-			uint8_t val;
-			fread(&val, globals[2], 1, fp);
-			faces[i] = (uint32_t)val;
-		}
-		else if (globals[2] == 2) {
-			uint16_t val;
-			fread(&val, globals[2], 1, fp);
-			faces[i] = (uint32_t)val;
-		}
-		else if (globals[2] == 4) {
-			fread(&faces[i], globals[2], 1, fp);
-		}
-
+		char val[4];
+		memset(val, 0, 4);
+		fread(&val, globals[2], 1, fp);
+		faces[i] = swapUint32(val);
 		//QUICK_PRINT(faces[i], "%d");
 	}
 	for (uint32_t i = 0; i < faceCount; i+= 3) {
@@ -216,6 +237,7 @@ uint32_t ParsePMX(FILE *fp, sint8_t *filename) {
 		sprintf(buf, "f %d/%d %d/%d %d/%d\n", faces[i] + 1, faces[i] + 1, faces[i+1] + 1, faces[i + 1] + 1, faces[i+2] + 1, faces[i + 2] + 1);
 		fwrite(buf, sizeof(uint8_t), strlen(buf), obj);
 	}
+
 	fclose(obj);
 	free(faces);
 	free(vertList);
@@ -246,5 +268,7 @@ int main(int argc, char **argv) {
 	uint32_t errCode;
 	if ((errCode = ParsePMX(fp, argv[1])) != 0)
 		printf("Failed to parse PMX with error code %02X!\n", errCode);
+	else
+		printf("Done! File saved to %s_out.obj\n", argv[1]);
 	fclose(fp);
 }
