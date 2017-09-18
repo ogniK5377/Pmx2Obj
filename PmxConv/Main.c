@@ -231,6 +231,8 @@ int main(int argc, char **argv) {
 	argc = 2;
 	argv[1] = "C:\\cunt\\TDA Snow Miku.pmx";
 #endif
+	printf("PMX2OBJ By ogniK! Last built "__DATE__" at "__TIME__"\n");
+	printf("---------------------------------------------------------------------------\n");
 	if (argc < 2) {
 		printf("%s <FILE>\n", argv[0]);
 		return 0;
